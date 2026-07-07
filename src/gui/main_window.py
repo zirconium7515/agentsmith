@@ -262,10 +262,6 @@ class MainWindow:
         self.log("미리보기를 클립보드에 복사했습니다.")
 
     def start_process(self) -> None:
-        if not self.proj_var.get():
-            messagebox.showerror("오류", "프로젝트 폴더를 선택하세요.")
-            return
-
         direct_text = self.txt_input.get("1.0", tk.END).strip()
         if not self.raw_var.get() and not direct_text:
             messagebox.showerror("오류", "원본 문맥 파일을 선택하거나 직접 문맥을 입력하세요.")
@@ -326,7 +322,10 @@ class MainWindow:
 
     def run_pipeline(self) -> None:
         try:
-            proj_dir = self.proj_var.get()
+            proj_dir = self.proj_var.get().strip()
+            if not proj_dir:
+                self.log("[경고] 프로젝트 폴더가 지정되지 않아 파일 저장 및 트리 생성은 생략됩니다.")
+
             raw_text, warnings = self.collect_input()
             if not raw_text:
                 self.log("입력 문맥이 없습니다.")
@@ -338,7 +337,7 @@ class MainWindow:
             self.progress["value"] = 45
 
             tree_str = ""
-            if self.chk_tree.get():
+            if proj_dir and self.chk_tree.get():
                 self.log("프로젝트 트리를 생성하는 중...")
                 tree_str = generate_project_tree(proj_dir)
 
@@ -357,13 +356,16 @@ class MainWindow:
                 include_bundle=self.chk_bundle.get(),
             )
 
-            for relative_path, content in outputs.items():
-                write_file(os.path.join(proj_dir, relative_path), content)
-                self.log(f"생성 완료: {relative_path}")
+            if proj_dir:
+                for relative_path, content in outputs.items():
+                    write_file(os.path.join(proj_dir, relative_path), content)
+                    self.log(f"생성 완료: {relative_path}")
 
-            if self.chk_skills.get():
-                self.log("스킬 템플릿을 생성하는 중...")
-                setup_skills(proj_dir)
+                if self.chk_skills.get():
+                    self.log("스킬 템플릿을 생성하는 중...")
+                    setup_skills(proj_dir)
+            else:
+                self.log("파일 저장 없이 변환이 완료되었습니다.")
 
             self.preview_text = preview
             self.txt_preview.insert(tk.END, preview)
