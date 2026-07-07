@@ -167,6 +167,29 @@ def score_slot_confidence(slots: ExtractedSlots) -> float:
     return round(score, 2)
 
 
+def translate_korean_to_english_rule_based(text: str, default_val: str = "the system") -> str:
+    if not text:
+        return default_val
+    if not re.search('[ㄱ-ㅣ가-힣]', text):
+        return text
+
+    # Check for specific known terms
+    if "로그인" in text:
+        return "login"
+    if "엑셀" in text:
+        return "Excel export"
+    if "검색" in text:
+        return "search"
+    if "초기 설정" in text or "초기설정" in text:
+        return "initialization setup"
+
+    # If it is just generic bug/issue request
+    if any(w in text for w in ["버그", "에러", "오류", "고치다", "수정", "디버그", "문제"]):
+        return "the bug"
+
+    return default_val
+
+
 def render_prompt(slots: ExtractedSlots, config: PromptOnlyConfig) -> str:
     raw_text = slots.raw_text or ""
     use_english = (config.language_mode == "controlled_en") or (config.language_mode == "auto" and config.target_agent in ["codex", "antigravity"])
@@ -183,17 +206,20 @@ def render_prompt(slots: ExtractedSlots, config: PromptOnlyConfig) -> str:
     if use_english:
         # 영어 번역 적용
         if action == "fix":
-            task_desc = f"Fix the issue regarding {target_object or 'the system'}."
+            t_obj = translate_korean_to_english_rule_based(target_object, "the system")
+            task_desc = f"Fix the issue regarding {t_obj}."
             if "로그인" in raw_text:
                 task_desc = "Fix the crash that occurs when the login button is pressed."
             elif "엑셀" in raw_text:
                 task_desc = "Fix the Korean text corruption that occurs during Excel export."
         elif action == "investigate":
-            task_desc = f"Investigate and improve/fix {target_object or 'the system'}."
+            t_obj = translate_korean_to_english_rule_based(target_object, "the system")
+            task_desc = f"Investigate and improve/fix {t_obj}."
             if "검색" in raw_text:
                 task_desc = "Investigate and improve the slow search behavior."
         else:
-            task_desc = f"Process request for {target_object or 'the project'}."
+            t_obj = translate_korean_to_english_rule_based(target_object, "the project")
+            task_desc = f"Process request for {t_obj}."
 
         context_items = []
         if symptom:
@@ -204,21 +230,27 @@ def render_prompt(slots: ExtractedSlots, config: PromptOnlyConfig) -> str:
             elif "검색" in symptom:
                 context_items.append("Search speed is slow.")
             else:
-                context_items.append(symptom)
+                translated_s = translate_korean_to_english_rule_based(symptom, "There is a bug in the application.")
+                context_items.append(translated_s if translated_s != "the bug" else "There is a bug in the application.")
 
         files_items = []
         for f in files:
             if "엑셀" in raw_text:
                 files_items.append("Inspect the Excel export and encoding-related code first.")
             else:
-                files_items.append(f"Inspect code related to {f}.")
+                translated_f = translate_korean_to_english_rule_based(f, f)
+                files_items.append(f"Inspect code related to {translated_f}.")
 
         constraints_items = []
         for c in constraints:
             if "초기 설정" in c:
                 constraints_items.append("Do not change project initialization or setup behavior.")
             else:
-                constraints_items.append(c)
+                translated_c = translate_korean_to_english_rule_based(c, "")
+                if translated_c and translated_c != "the bug" and translated_c != "the system":
+                    constraints_items.append(f"Do not change {translated_c}.")
+                else:
+                    constraints_items.append("Do not modify unrelated configurations.")
 
         req_items = []
         if action == "fix":
@@ -243,7 +275,11 @@ def render_prompt(slots: ExtractedSlots, config: PromptOnlyConfig) -> str:
             elif "검색" in v:
                 ver_items.extend(["Search performance check."])
             else:
-                ver_items.append(v)
+                translated_v = translate_korean_to_english_rule_based(v, "")
+                if translated_v and translated_v != "the system" and translated_v != "the bug":
+                    ver_items.append(f"Verify {translated_v}.")
+                else:
+                    ver_items.append("Verify and confirm the fix.")
         if not ver_items:
             if "로그인" in raw_text:
                 ver_items.extend(["Reproduce the crash if possible.", "Confirm it works after the fix."])
@@ -251,6 +287,8 @@ def render_prompt(slots: ExtractedSlots, config: PromptOnlyConfig) -> str:
                 ver_items.extend(["Export a sample file after the fix.", "Confirm that Korean text is preserved correctly."])
             elif "검색" in raw_text:
                 ver_items.extend(["Search performance check."])
+            else:
+                ver_items.append("Verify and confirm the fix.")
 
         out_items = []
         for o in output_needs:
@@ -259,12 +297,18 @@ def render_prompt(slots: ExtractedSlots, config: PromptOnlyConfig) -> str:
             elif "엑셀" in raw_text:
                 out_items.extend(["Explain the root cause.", "Summarize changes.", "List changed files.", "Report verification result."])
             else:
-                out_items.append(o)
+                translated_o = translate_korean_to_english_rule_based(o, "")
+                if translated_o and translated_o != "the system" and translated_o != "the bug":
+                    out_items.append(f"Report findings for {translated_o}.")
+                else:
+                    out_items.append("Summarize changes made.")
         if not out_items:
             if "로그인" in raw_text:
                 out_items.extend(["root cause, changes, verification"])
             elif "엑셀" in raw_text:
                 out_items.extend(["Explain the root cause.", "Summarize changes.", "List changed files.", "Report verification result."])
+            else:
+                out_items.append("Summarize changes made.")
     else:
         # 한국어 출력 적용
         if action == "fix":
