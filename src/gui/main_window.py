@@ -75,7 +75,11 @@ class MainWindow:
         threading.Thread(target=self.check_for_updates, args=(False,), daemon=True).start()
 
     def load_local_version(self) -> str:
-        return "1.1.13"
+        try:
+            with open(VERSION_FILE, "r", encoding="utf-8") as file:
+                return file.read().strip()
+        except Exception:
+            return "unknown"
 
     def check_for_updates(self, manual: bool = False) -> None:
         try:
