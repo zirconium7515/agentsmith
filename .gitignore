@@ -26,7 +26,7 @@ results/raw/
 
 # Build outputs
 build/
-dist/
+# dist/
 *.spec
 
 # Temporary backups created during local repair
