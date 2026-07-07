@@ -209,6 +209,19 @@ class MainWindow:
         self.btn_chk_tree = ttk.Checkbutton(opt_frame, text="프로젝트 트리", variable=self.chk_tree)
         self.btn_chk_tree.grid(row=4, column=2, sticky=tk.W)
 
+        ttk.Label(opt_frame, text="출력 언어:").grid(row=5, column=0, sticky=tk.W)
+        self.lang_var = tk.StringVar(value="auto")
+        ttk.Radiobutton(opt_frame, text="자동 (Auto)", variable=self.lang_var, value="auto").grid(row=5, column=1, sticky=tk.W)
+        ttk.Radiobutton(opt_frame, text="영어 (English)", variable=self.lang_var, value="controlled_en").grid(row=5, column=2, sticky=tk.W)
+        ttk.Radiobutton(opt_frame, text="한국어 (Korean)", variable=self.lang_var, value="ko").grid(row=5, column=3, sticky=tk.W)
+
+        ttk.Label(opt_frame, text="프롬프트 스타일:").grid(row=6, column=0, sticky=tk.W)
+        self.style_var = tk.StringVar(value="balanced")
+        ttk.Radiobutton(opt_frame, text="Balanced (기본)", variable=self.style_var, value="balanced").grid(row=6, column=1, sticky=tk.W)
+        ttk.Radiobutton(opt_frame, text="Micro (요약)", variable=self.style_var, value="micro").grid(row=6, column=2, sticky=tk.W)
+        ttk.Radiobutton(opt_frame, text="Scoped (제약)", variable=self.style_var, value="scoped").grid(row=6, column=3, sticky=tk.W)
+        ttk.Radiobutton(opt_frame, text="Plan-First (계획)", variable=self.style_var, value="plan_first").grid(row=6, column=4, sticky=tk.W)
+
         ctrl_frame = ttk.Frame(main_frame)
         ctrl_frame.pack(fill=tk.X, pady=5)
 
@@ -363,6 +376,9 @@ class MainWindow:
                 include_task=self.chk_task.get(),
                 include_compact=self.chk_compact.get(),
                 include_bundle=self.chk_bundle.get(),
+                raw_text=raw_text,
+                language_mode=self.lang_var.get(),
+                prompt_style=self.style_var.get(),
             )
 
             if proj_dir:

@@ -473,13 +473,23 @@ def build_agent_outputs(
     include_task: bool = True,
     include_compact: bool = True,
     include_bundle: bool = True,
+    raw_text: str = "",
+    language_mode: str = "auto",
+    prompt_style: str = "balanced",
 ) -> tuple[dict[str, str], str]:
     data = normalize_context(context_data)
     
     if workflow_mode == "Prompt Only":
-        from src.generators.prompt_composer import compose_prompt
-        preview = compose_prompt(data, target_agent)
-        token_note = f"\n\n---\nEstimated preview tokens: {estimate_tokens(preview)}\n" if preview else ""
+        from src.generators.prompt_composer import compose_prompt_only, PromptOnlyConfig
+        config = PromptOnlyConfig(
+            target_agent="codex" if target_agent.lower() != "antigravity" else "antigravity",
+            style=prompt_style,
+            language_mode=language_mode,
+            allow_llm_fallback=True,
+        )
+        res = compose_prompt_only(raw_text or "\n".join(data.get("goal", []) + data.get("context", [])), config)
+        preview = res.prompt_text
+        token_note = f"\n\n---\nEstimated preview tokens: {res.estimated_tokens}\n" if preview else ""
         return {}, preview + token_note
 
     target = target_agent.lower()
