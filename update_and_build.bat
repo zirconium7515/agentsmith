@@ -4,7 +4,7 @@ echo Context Compiler Auto-Updater
 echo =======================================
 
 echo 1. Pulling latest code from GitHub...
-git pull origin main
+git pull origin master
 
 echo 2. Installing requirements...
 pip install -r requirements.txt
