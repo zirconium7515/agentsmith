@@ -208,7 +208,8 @@ namespace AgentSmithInstaller
                     string buildScript = Path.Combine(installDir, "update_and_build.bat");
                     if (File.Exists(buildScript))
                     {
-                        RunCommandWithOutput("cmd.exe", "/c update_and_build.bat", installDir);
+                        // --no-start 인자를 전달하여 빌드 후 스크립트 내에서 exe를 실행하지 않도록 합니다 (파이프 블로킹 방지)
+                        RunCommandWithOutput("cmd.exe", "/c update_and_build.bat --no-start", installDir);
                     }
                     else
                     {
@@ -219,6 +220,18 @@ namespace AgentSmithInstaller
                         progressBar.Visible = false;
                         lblStatus.Text = "초기 셋업 및 빌드 완료!";
                         MessageBox.Show("AgentSmith 설치 및 빌드가 완벽하게 마무리되었습니다!\n프로그램이 시작됩니다.", "설치 완료", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        
+                        // 직접 exe 실행 (단독 프로세스)
+                        string exePath = Path.Combine(installDir, @"dist\AgentSmith\AgentSmith.exe");
+                        if (File.Exists(exePath))
+                        {
+                            ProcessStartInfo psi = new ProcessStartInfo();
+                            psi.FileName = exePath;
+                            psi.WorkingDirectory = installDir;
+                            psi.UseShellExecute = true;
+                            Process.Start(psi);
+                        }
+                        
                         Application.Exit();
                     }));
                 }

@@ -15,6 +15,12 @@ python -m PyInstaller --noconfirm --onedir --windowed --name "AgentSmith" main.p
 
 echo =======================================
 echo Update and Build Complete!
+
+if "%~1"=="--no-start" (
+    echo Build finished successfully.
+    exit /b
+)
+
 echo Restarting AgentSmith...
 echo =======================================
 
