@@ -24,6 +24,12 @@ archive/
 results/raw/
 .cache/
 
+# Build outputs
+build/
+dist/
+*.spec
+
+
 # OS generated files
 .DS_Store
 .DS_Store?

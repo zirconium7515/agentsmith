@@ -2,7 +2,9 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 import threading
 import os
-import time
+import urllib.request
+import subprocess
+import sys
 
 from src.core.file_manager import read_file, write_file, generate_project_tree
 from src.core.safety_checker import get_warnings_for_inclusion
@@ -12,18 +14,68 @@ from src.converter.model_selector import select_best_model
 from src.generators.bundler import render_template, build_context_for_ai
 from src.generators.skill_manager import setup_skills
 
+# Use absolute path for VERSION.txt to work with PyInstaller
+if getattr(sys, 'frozen', False):
+    BASE_DIR = sys._MEIPASS
+else:
+    BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+VERSION_FILE = os.path.join(BASE_DIR, "VERSION.txt")
+REMOTE_VERSION_URL = "https://raw.githubusercontent.com/zirconium7515/agentsmith/main/VERSION.txt"
+
 class MainWindow:
     def __init__(self, root):
         self.root = root
-        self.root.geometry("800x600")
+        self.root.geometry("800x650")
         self.root.title("Context Compiler")
         
         self.running = False
+        self.current_version = self.load_local_version()
         self.setup_ui()
         
+        # Check for updates in background
+        threading.Thread(target=self.check_for_updates, daemon=True).start()
+        
+    def load_local_version(self):
+        try:
+            with open(VERSION_FILE, 'r') as f:
+                return f.read().strip()
+        except Exception:
+            return "unknown"
+            
+    def check_for_updates(self):
+        try:
+            req = urllib.request.Request(REMOTE_VERSION_URL, headers={'User-Agent': 'Mozilla/5.0'})
+            with urllib.request.urlopen(req, timeout=5) as response:
+                remote_version = response.read().decode('utf-8').strip()
+                
+            if remote_version and self.current_version != "unknown" and remote_version != self.current_version:
+                # Show update button
+                self.root.after(0, self.show_update_button, remote_version)
+        except Exception as e:
+            print(f"Update check failed: {e}")
+            
+    def show_update_button(self, new_version):
+        self.update_btn = ttk.Button(self.header_frame, text=f"✨ Update Available (v{new_version})", command=self.trigger_update)
+        self.update_btn.pack(side=tk.RIGHT, padx=10)
+        
+    def trigger_update(self):
+        if messagebox.askyesno("Update", "The app will close and update itself. Continue?"):
+            update_script = os.path.join(BASE_DIR, "update_and_build.bat")
+            if os.path.exists(update_script):
+                subprocess.Popen(f'start cmd /c "{update_script}"', shell=True)
+                self.root.quit()
+            else:
+                messagebox.showerror("Error", "Update script not found!")
+
     def setup_ui(self):
         main_frame = ttk.Frame(self.root, padding="10")
         main_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # --- Header (Title + Update Button) ---
+        self.header_frame = ttk.Frame(main_frame)
+        self.header_frame.pack(fill=tk.X, pady=(0, 10))
+        ttk.Label(self.header_frame, text=f"Context Compiler v{self.current_version}", font=("Helvetica", 14, "bold")).pack(side=tk.LEFT)
         
         # --- File Selection ---
         file_frame = ttk.LabelFrame(main_frame, text="Paths", padding="5")
