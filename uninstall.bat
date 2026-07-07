@@ -32,6 +32,9 @@ exit
 :DeleteFolder
 set "TARGET_DIR=%~2"
 echo.
+:: 현재 스크립트(cmd.exe)의 작업 경로를 임시 폴더로 이동하여 삭제할 폴더의 잠금을 해제합니다.
+cd /d "%TEMP%"
+
 echo [진행] 실행 중인 앱을 종료하는 중입니다...
 taskkill /f /im AgentSmith.exe >nul 2>&1
 taskkill /f /im AgentSmith_Installer.exe >nul 2>&1
