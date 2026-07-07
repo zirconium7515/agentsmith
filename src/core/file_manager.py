@@ -20,6 +20,17 @@ EXCLUDED_DIRS = {
     ".cache",
 }
 
+EXCLUDED_FILES_AND_PATTERNS = {
+    "AGENTS.md",
+    "CONTEXT.compact.md",
+    "CONTEXT_FOR_AI.md",
+    "CONTEXT_FOR_ANTIGRAVITY.md",
+    "COPY_READY_PROMPT.md",
+    "TASK.md",
+    "implementation_plan.md",
+    "walkthrough.md",
+}
+
 EXCLUDED_PATHS = [
     os.path.normpath("results/raw"),
 ]
@@ -35,6 +46,13 @@ def is_excluded(path: str, base_path: str) -> bool:
         return True
 
     normalized_rel = os.path.normpath(rel_path)
+    filename = os.path.basename(normalized_rel)
+    if filename in EXCLUDED_FILES_AND_PATTERNS:
+        return True
+
+    if normalized_rel.startswith(os.path.normpath(".agents/AGENTS.md")) or normalized_rel.startswith(os.path.normpath(".agents/skills")):
+        return True
+
     return any(
         normalized_rel == excluded or normalized_rel.startswith(excluded + os.sep)
         for excluded in EXCLUDED_PATHS

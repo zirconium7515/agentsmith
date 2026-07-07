@@ -17,8 +17,91 @@ def section(title: str, items: list[str], fallback: str | None = None) -> str:
     return f"## {title}\n" + bullets(items)
 
 
+DEFAULT_WORKFLOW = [
+    "Source of truth: Windows Google Drive mirrored or streamed workspace.",
+    "Active development happens in the Google Drive workspace through Windows File Explorer.",
+    "GitHub is used for backup, version tracking, deployment, and distribution.",
+    "Runtime machines update through `git pull`.",
+    "Do not treat runtime folders as the source of truth.",
+    "Do not suggest clone or worktree alternatives.",
+]
+
+
+def deduplicate_workflow(custom_workflow: list[str]) -> list[str]:
+    cleaned = []
+    for bullet in custom_workflow:
+        lower = bullet.lower()
+        if any(kw in lower for kw in ["source of truth", "google drive", "googledrive", "file explorer", "github", "git pull", "clone", "worktree"]):
+            continue
+        cleaned.append(bullet)
+    return cleaned
+
+
+def build_git_rules(custom_git_rules: list[str]) -> list[str]:
+    if not custom_git_rules:
+        return []
+    rules_list = []
+    has_push = any("push" in r.lower() for r in custom_git_rules)
+    has_version = any("version" in r.lower() or "v" in r.lower() for r in custom_git_rules)
+    has_commit = any("commit" in r.lower() for r in custom_git_rules)
+
+    if has_push:
+        rules_list.append("Push developed code to GitHub.")
+    if has_version:
+        rules_list.append("Follow the `vX.Y.Z` versioning rule before pushing.")
+    if has_commit:
+        rules_list.append("Include the version in the commit message.")
+    
+    rules_list.append("Do not commit or push automatically unless explicitly requested.")
+    
+    for r in custom_git_rules:
+        r_lower = r.lower()
+        if any(x in r_lower for x in ["push developed code", "follow the", "include the version in the commit", "automatically unless"]):
+            continue
+        rules_list.append(r)
+    return rules_list
+
+
+def build_versioning_rules(custom_versioning: list[str]) -> list[str]:
+    if not custom_versioning:
+        return []
+    rules_list = [
+        "Use version format `vX.Y.Z`.",
+        "Increment `X` for large-scale patches.",
+        "Increment `Y` for major feature additions or redesigns within the same `X` version.",
+        "Increment `Z` for small feature patches, bug fixes, or minor maintenance patches within the same `Y` version.",
+    ]
+    for r in custom_versioning:
+        r_lower = r.lower()
+        if any(x in r_lower for x in ["version format", "increment `x`", "increment `y`", "increment `z`"]):
+            continue
+        if "기준" in r or "표시한다" in r or "인덱스" in r or "맞춰서" in r:
+            continue
+        rules_list.append(r)
+    return rules_list
+
+
+def build_dependency_and_ignore_rules(dependency_rules: list[str], ignore_rules: list[str]) -> list[str]:
+    combined = dependency_rules + ignore_rules
+    if not combined:
+        return []
+    rules_list = []
+    has_venv = any("venv" in r.lower() or "gitignore" in r.lower() for r in combined)
+    if has_venv:
+        rules_list.append("Add virtual environments such as `venv/` to `.gitignore`.")
+        rules_list.append("Do not manage heavy runtime or generated folders as source files in the Google Drive workspace.")
+    
+    for r in combined:
+        r_lower = r.lower()
+        if any(x in r_lower for x in ["add virtual environments", "do not manage heavy"]):
+            continue
+        rules_list.append(r)
+    return rules_list
+
+
 def render_compact_context(context_data: dict) -> str:
     data = normalize_context(context_data)
+    dep_and_ignore = build_dependency_and_ignore_rules(data["dependency_rules"], data["ignore_rules"])
     parts = [
         "# Compact Context",
         section("Project", data["project"]),
@@ -27,19 +110,11 @@ def render_compact_context(context_data: dict) -> str:
         section("Environment", data["environment"]),
         section(
             "Workflow",
-            [
-                "Source of truth: Google Drive mirrored workspace.",
-                "GitHub is used for backup, version tracking, deployment, and distribution.",
-                "Runtime machines receive updates through `git pull`.",
-                "Do not treat runtime folders as primary development folders.",
-                "Do not suggest clone or worktree alternatives.",
-            ]
-            + data["workflow"],
+            DEFAULT_WORKFLOW + deduplicate_workflow(data["workflow"]),
         ),
-        section("Git Rules", data["git_rules"]),
-        section("Versioning Rules", data["versioning_rules"]),
-        section("Dependency Rules", data["dependency_rules"]),
-        section("Ignore Rules", data["ignore_rules"]),
+        section("Git Rules", build_git_rules(data["git_rules"])),
+        section("Versioning Rules", build_versioning_rules(data["versioning_rules"])),
+        section("Dependency and Ignore Rules", dep_and_ignore),
         section(
             "Agent Rules",
             [
@@ -72,22 +147,21 @@ def render_codex_agents(context_data: dict) -> str:
         "# AGENTS.md",
         section(
             "Project Workflow",
-            [
-                "The source of truth is the Google Drive mirrored workspace.",
-                "Active development happens directly in the Google Drive mirrored workspace.",
-                "GitHub is used for backup, version tracking, deployment, and distribution.",
-                "Runtime machines receive code updates through `git pull` from GitHub.",
-                "Do not assume any runtime folder is the primary development folder.",
-                "Do not propose changing this workflow to a separate clone or worktree.",
-            ],
+            DEFAULT_WORKFLOW + deduplicate_workflow(data["workflow"]),
         ),
     ]
-    if data["git_rules"]:
-        parts.append(section("Git Rules", data["git_rules"]))
-    if data["versioning_rules"]:
-        parts.append(section("Versioning Rules", data["versioning_rules"]))
-    if data["dependency_rules"] or data["ignore_rules"]:
-        parts.append(section("Dependency and Ignore Rules", data["dependency_rules"] + data["ignore_rules"]))
+    
+    git_rules = build_git_rules(data["git_rules"])
+    if git_rules:
+        parts.append(section("Git Rules", git_rules))
+        
+    version_rules = build_versioning_rules(data["versioning_rules"])
+    if version_rules:
+        parts.append(section("Versioning Rules", version_rules))
+        
+    dep_and_ignore = build_dependency_and_ignore_rules(data["dependency_rules"], data["ignore_rules"])
+    if dep_and_ignore:
+        parts.append(section("Dependency and Ignore Rules", dep_and_ignore))
 
     parts.extend([
         section(
@@ -219,21 +293,23 @@ def render_antigravity_agents(context_data: dict) -> str:
             "Project Workflow",
             [
                 "Apply these rules only to this workspace.",
-                "The source of truth is the Google Drive mirrored workspace.",
-                "Active development happens directly in the Google Drive mirrored workspace.",
-                "GitHub is used for backup, version tracking, deployment, and distribution.",
-                "Runtime machines receive code updates through `git pull` from GitHub.",
-                "Do not assume any runtime folder is the primary development folder.",
-                "Do not propose changing this workflow to a separate clone or worktree.",
-            ],
+            ]
+            + DEFAULT_WORKFLOW
+            + deduplicate_workflow(data["workflow"]),
         ),
     ]
-    if data["git_rules"]:
-        parts.append(section("Git Rules", data["git_rules"]))
-    if data["versioning_rules"]:
-        parts.append(section("Versioning Rules", data["versioning_rules"]))
-    if data["dependency_rules"] or data["ignore_rules"]:
-        parts.append(section("Dependency and Ignore Rules", data["dependency_rules"] + data["ignore_rules"]))
+    
+    git_rules = build_git_rules(data["git_rules"])
+    if git_rules:
+        parts.append(section("Git Rules", git_rules))
+        
+    version_rules = build_versioning_rules(data["versioning_rules"])
+    if version_rules:
+        parts.append(section("Versioning Rules", version_rules))
+        
+    dep_and_ignore = build_dependency_and_ignore_rules(data["dependency_rules"], data["ignore_rules"])
+    if dep_and_ignore:
+        parts.append(section("Dependency and Ignore Rules", dep_and_ignore))
 
     parts.extend([
         section(

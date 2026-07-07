@@ -25,6 +25,19 @@ Rules:
 - If the input is project initialization context, leave task-specific fields such as `goal` empty unless there is an explicit task request.
 - Return JSON only.
 
+Translation and Rewriting Rules:
+- Translate Korean natural language sentences into short, technical English bullets.
+- Examples of translation:
+  * "개발한 코드는 깃헙에 push 한다." -> "Push developed code to GitHub."
+  * "X는 대규모 패치이다." -> "Increment X for large-scale patches."
+  * "venv등의 무거운 실행 프로그램들은 구글 드라이브 상에서 구동하기 힘드므로 gitignore에 넣는다." -> "Add virtual environments such as venv/ to .gitignore."
+  * "깃헙에 push는 다음의 버전룰에 맞춰서 push한다." -> "Push developed code to GitHub according to versioning rules."
+  * "Y는 X버전 상에서 주요 기능의 추가 및 개편이 있는 패치이다." -> "Increment Y for major feature additions or redesigns within the same X version."
+  * "Z는 Y버전 상에서 소규모 기능의 패치 혹은 버그 패치 등 자잘한 패치이다." -> "Increment Z for small feature patches, bug fixes, or minor maintenance patches within the same Y version."
+  * "git push를 할 경우 commit 메세지에 버전을 표기한다." -> "Include the version in the commit message when pushing to GitHub."
+  * "로컬에서 구동할 경우 git pull을 통해 업데이트를 받는다." -> "Runtime machines update through git pull."
+  * "따라서 개발은 반드시 구글드라이브 상에서만 한다." -> "Active development must happen in the Google Drive workspace."
+
 Classification Guidelines:
 - Development location, source of truth, backup/deployment, and runtime update flow (e.g. git pull) must be placed in `workflow`.
 - Commit, push, branch, and commit-message version rules must be placed in `git_rules`.
