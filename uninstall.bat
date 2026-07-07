@@ -2,86 +2,70 @@
 chcp 65001 >nul
 setlocal EnableDelayedExpansion
 
-if "%~1"=="RUN_FROM_TEMP" goto DeleteFolder
+:: ------------------------------------------------------------
+:: AgentSmith 완전 삭제 스크립트
+::   - 어디서 실행해도 현재 스크립트가 위치한 폴더를 정확히 찾음
+::   - 실행 중인 AgentSmith 관련 프로세스를 강제 종료
+::   - 읽기 전용/숨김/시스템 속성을 모두 해제
+::   - PowerShell 로 폴더를 강제 재귀 삭제 (최대 5번 재시도)
+::   - 삭제 성공 시 스스로 파일을 지우고 종료
+:: ------------------------------------------------------------
 
-echo ==========================================
-echo AgentSmith 완전 삭제 프로그램
-echo ==========================================
-echo.
-echo 정말로 AgentSmith를 완전히 삭제하시겠습니까?
-echo 이 작업은 취소할 수 없으며, 모든 소스코드와 설정 파일이 영구 삭제됩니다.
-echo.
-set /p "confirm=삭제하려면 Y를 누르고 엔터를 치세요 (Y/N): "
-if /i "%confirm%"=="Y" goto StartUninstall
+rem --- 1. 설치 폴더 경로 확보 (스크립트 자체가 있는 폴더) ---
+set "INSTALL_DIR=%~dp0"
+rem 제거할 때 뒤에 남는 역슬래시를 없앱니다
+if "%INSTALL_DIR:~-1%"=="\" set "INSTALL_DIR=%INSTALL_DIR:~0,-1%"
 
-echo 삭제가 취소되었습니다.
-pause
-exit /b
-
-:StartUninstall
-:: 자신을 포함한 부모 폴더(agentsmith)의 전체 경로 확보 (%CD% 대신 %~dp0 사용)
-set "TARGET_DIR=%~dp0"
-if "%TARGET_DIR:~-1%"=="\" set "TARGET_DIR=%TARGET_DIR:~0,-1%"
-
-:: 자신을 임시 폴더(TEMP)로 복사 (실행 중인 폴더는 삭제 불가하기 때문)
-copy "%~f0" "%TEMP%\AgentSmith_Uninstall.bat" >nul
-
-:: 임시 폴더의 스크립트를 별도 프로세스로 실행하고, 현재 스크립트는 즉시 종료
-start "" cmd /c "%TEMP%\AgentSmith_Uninstall.bat" RUN_FROM_TEMP "%TARGET_DIR%"
-exit
-
-:DeleteFolder
-set "TARGET_DIR=%~2"
-echo.
-:: 현재 스크립트(cmd.exe)의 작업 경로를 임시 폴더로 이동하여 삭제할 폴더의 잠금을 해제합니다.
-cd /d "%TEMP%"
-
-echo [진행] 실행 중인 앱을 종료하는 중입니다...
-taskkill /f /im AgentSmith.exe >nul 2>&1
-taskkill /f /im AgentSmith_Installer.exe >nul 2>&1
-taskkill /f /im python.exe >nul 2>&1
-echo [진행] 앱 종료 및 폴더 잠금을 해제하는 중입니다 (2초 대기)...
-timeout /t 2 /nobreak >nul
-
-echo [진행] 폴더 내 읽기 전용 속성을 해제하고 있습니다 (시간이 소요될 수 있습니다)...
-attrib -r -s -h "%TARGET_DIR%\*.*" /s /d >nul 2>&1
-
-echo [진행] %TARGET_DIR% 폴더 삭제를 시도합니다...
-set RETRY=0
-
-:RetryLoop
-rmdir /s /q "%TARGET_DIR%"
-if exist "%TARGET_DIR%" (
-    set /a RETRY+=1
-    if !RETRY! lss 5 (
-        echo [경고] 구글 드라이브 동기화 또는 다른 프로세스 때문에 폴더가 잠겨 있습니다. 3초 후 다시 시도합니다... ^(!RETRY!/5^)
-        timeout /t 3 /nobreak >nul
-        goto RetryLoop
-    ) else (
-        echo.
-        echo ==========================================
-        echo [오류] 삭제에 실패했습니다!
-        echo ==========================================
-        echo 누군가 폴더를 꽉 잡고 놓아주지 않고 있습니다.
-        echo 다음 중 하나가 원인일 확률이 99%% 입니다:
-        echo 1. 구글 드라이브가 현재 이 폴더를 동기화 중임
-        echo 2. VS Code 등 코드 에디터가 이 폴더를 열고 있음
-        echo 3. 백그라운드에 파이썬 프로세스가 살아있음
-        echo.
-        echo 폴더 창이나 에디터를 모두 닫고 윈도우를 재부팅하신 후 다시 시도해 주세요.
-        echo (이 창은 아무 키나 누르면 닫힙니다.)
-        pause >nul
-        del "%~f0"
-        exit
-    )
+echo This will permanently delete AgentSmith from:
+echo   "%INSTALL_DIR%"
+set /p "confirm=Type Y and press ENTER to continue: "
+if /I not "%confirm%"=="Y" (
+    echo Cancellation requested. Exiting.
+    pause
+    exit /b
 )
 
-echo.
-echo ==========================================
-echo [완료] AgentSmith가 PC에서 완전히 삭제되었습니다!
-echo ==========================================
-echo (이 창은 아무 키나 누르면 닫힙니다.)
-pause >nul
-:: 임시 폴더에 복사된 자신도 스스로 삭제
-del "%~f0"
-exit
+rem --- 2. 실행 중인 관련 프로세스 강제 종료 ---
+for %%P in (AgentSmith.exe AgentSmith_Installer.exe python.exe) do (
+    taskkill /F /IM %%P >nul 2>&1
+)
+timeout /t 2 /nobreak >nul
+
+rem --- 3. 파일 속성 해제 (읽기 전용, 숨김, 시스템) ---
+attrib -R -A -S -H "%INSTALL_DIR%\*" /S /D >nul 2>&1
+
+rem --- 4. PowerShell 로 폴더 삭제, 최대 5회 재시도 ---
+set "MAX_RETRIES=5"
+set /a attempt=0
+:DELETE_LOOP
+powershell -NoProfile -Command "Remove-Item -LiteralPath '%INSTALL_DIR%' -Recurse -Force -ErrorAction Stop"
+if %ERRORLEVEL% EQU 0 (
+    echo Deletion succeeded.
+    goto CLEANUP
+)
+set /a attempt+=1
+if %attempt% LEQ %MAX_RETRIES% (
+    echo Deletion attempt %attempt% failed, retrying in 3 seconds...
+    timeout /t 3 /nobreak >nul
+    goto DELETE_LOOP
+)
+
+rem --- 5. 모두 실패했을 경우 안내 ---
+echo ====================================================
+echo [ERROR] Could not delete the folder after %MAX_RETRIES% attempts.
+echo Possible reasons:
+echo   1. Google Drive / OneDrive 동기화가 진행 중
+echo   2. VS Code, 파일 탐색기 등에서 폴더가 열려 있음
+echo   3. 남아있는 백그라운드 프로세스
+echo
+echo Please close any programs that may lock the folder and run this script again.
+pause
+goto END
+
+:CLEANUP
+rem --- 6. 스크립트 자체 삭제 ---
+del "%~f0" >nul 2>&1
+exit /b
+
+:END
+exit /b
