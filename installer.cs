@@ -1,9 +1,9 @@
 using System;
-using System.Windows.Forms;
 using System.Diagnostics;
+using System.Drawing;
 using System.IO;
 using System.Threading;
-using System.Drawing;
+using System.Windows.Forms;
 
 namespace AgentSmithInstaller
 {
@@ -18,21 +18,21 @@ namespace AgentSmithInstaller
 
         public InstallerForm()
         {
-            this.Text = "AgentSmith Installer";
+            this.Text = "AgentSmith 설치기";
             this.Size = new Size(500, 400);
             this.StartPosition = FormStartPosition.CenterScreen;
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
 
             Label lblTitle = new Label();
-            lblTitle.Text = "AgentSmith Setup";
+            lblTitle.Text = "AgentSmith 설치";
             lblTitle.Font = new Font("Arial", 14, FontStyle.Bold);
             lblTitle.Location = new Point(160, 15);
             lblTitle.AutoSize = true;
             this.Controls.Add(lblTitle);
 
             Label lblDesc = new Label();
-            lblDesc.Text = "설치할 경로를 지정해 주세요:";
+            lblDesc.Text = "설치할 경로를 지정해 주세요.";
             lblDesc.Location = new Point(20, 50);
             lblDesc.AutoSize = true;
             this.Controls.Add(lblDesc);
@@ -89,7 +89,7 @@ namespace AgentSmithInstaller
         {
             using (FolderBrowserDialog fbd = new FolderBrowserDialog())
             {
-                fbd.Description = "설치할 최상위 폴더를 선택하세요.";
+                fbd.Description = "AgentSmith를 설치할 상위 폴더를 선택하세요.";
                 if (fbd.ShowDialog() == DialogResult.OK)
                 {
                     txtPath.Text = Path.Combine(fbd.SelectedPath, "AgentSmith");
@@ -120,11 +120,13 @@ namespace AgentSmithInstaller
 
         private void RefreshPath()
         {
-            try {
+            try
+            {
                 string sysPath = Environment.GetEnvironmentVariable("Path", EnvironmentVariableTarget.Machine);
                 string usrPath = Environment.GetEnvironmentVariable("Path", EnvironmentVariableTarget.User);
                 Environment.SetEnvironmentVariable("Path", sysPath + ";" + usrPath, EnvironmentVariableTarget.Process);
-            } catch { }
+            }
+            catch { }
         }
 
         private void RunCommandWithOutput(string fileName, string args, string workingDir = null)
@@ -143,25 +145,31 @@ namespace AgentSmithInstaller
             p.StartInfo = psi;
             p.OutputDataReceived += (s, ev) => { if (ev.Data != null) AppendLog(ev.Data); };
             p.ErrorDataReceived += (s, ev) => { if (ev.Data != null) AppendLog(ev.Data); };
-            
+
             p.Start();
             p.BeginOutputReadLine();
             p.BeginErrorReadLine();
             p.WaitForExit();
 
-            if (p.ExitCode != 0) throw new Exception("명령 실행 실패: " + fileName + " " + args);
+            if (p.ExitCode != 0)
+                throw new Exception("명령 실행 실패: " + fileName + " " + args);
         }
 
         private bool CheckCommand(string cmd)
         {
-            try {
+            try
+            {
                 ProcessStartInfo psi = new ProcessStartInfo("cmd.exe", "/c " + cmd + " --version");
                 psi.CreateNoWindow = true;
                 psi.UseShellExecute = false;
                 Process p = Process.Start(psi);
                 p.WaitForExit();
                 return p.ExitCode == 0;
-            } catch { return false; }
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         private void BtnInstall_Click(object sender, EventArgs e)
@@ -182,33 +190,32 @@ namespace AgentSmithInstaller
                         Directory.CreateDirectory(installDir);
                     }
 
-                    Log("[System] Git 설치 여부 확인 중...");
+                    Log("[시스템] Git 설치 여부 확인 중...");
                     if (!CheckCommand("git"))
                     {
-                        Log("[System] Git 무인 설치 중 (시간이 소요될 수 있습니다)...");
+                        Log("[시스템] Git 자동 설치 중입니다. 시간이 걸릴 수 있습니다...");
                         RunCommandWithOutput("winget", "install --id Git.Git -e --source winget --accept-source-agreements --accept-package-agreements --silent");
                         RefreshPath();
                     }
 
-                    Log("[System] Python 설치 여부 확인 중...");
+                    Log("[시스템] Python 설치 여부 확인 중...");
                     if (!CheckCommand("python"))
                     {
-                        Log("[System] Python 무인 설치 중 (시간이 소요될 수 있습니다)...");
+                        Log("[시스템] Python 자동 설치 중입니다. 시간이 걸릴 수 있습니다...");
                         RunCommandWithOutput("winget", "install --id Python.Python.3.12 -e --source winget --accept-source-agreements --accept-package-agreements --silent");
                         RefreshPath();
                     }
 
-                    Log("[System] 최신 소스코드 다운로드 중 (Git Clone)...");
+                    Log("[시스템] 최신 소스코드 다운로드 중입니다. (Git clone)...");
                     if (!Directory.Exists(Path.Combine(installDir, ".git")))
                     {
                         RunCommandWithOutput("git", "clone https://github.com/zirconium7515/agentsmith.git .", installDir);
                     }
 
-                    Log("[System] 백그라운드 빌드 스크립트 실행 중...");
+                    Log("[시스템] 백그라운드 빌드 스크립트 실행 중...");
                     string buildScript = Path.Combine(installDir, "update_and_build.bat");
                     if (File.Exists(buildScript))
                     {
-                        // --no-start 인자를 전달하여 빌드 후 스크립트 내에서 exe를 실행하지 않도록 합니다 (파이프 블로킹 방지)
                         RunCommandWithOutput("cmd.exe", "/c update_and_build.bat --no-start", installDir);
                     }
                     else
@@ -216,11 +223,11 @@ namespace AgentSmithInstaller
                         MessageBox.Show("빌드 스크립트를 찾을 수 없습니다!", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     }
 
-                    this.Invoke(new Action(() => {
+                    this.Invoke(new Action(() =>
+                    {
                         progressBar.Visible = false;
-                        lblStatus.Text = "초기 셋업 및 빌드 완료! 프로그램을 시작합니다...";
-                        
-                        // 직접 exe 실행 (단독 프로세스)
+                        lblStatus.Text = "초기 설정 및 빌드 완료! 프로그램을 시작합니다...";
+
                         string exePath = Path.Combine(installDir, @"dist\AgentSmith\AgentSmith.exe");
                         if (File.Exists(exePath))
                         {
@@ -230,13 +237,14 @@ namespace AgentSmithInstaller
                             psi.UseShellExecute = true;
                             Process.Start(psi);
                         }
-                        
+
                         Environment.Exit(0);
                     }));
                 }
                 catch (Exception ex)
                 {
-                    this.Invoke(new Action(() => {
+                    this.Invoke(new Action(() =>
+                    {
                         progressBar.Visible = false;
                         AppendLog("[ERROR] " + ex.Message);
                         MessageBox.Show("설치 중 오류가 발생했습니다. 로그 창을 확인해 주세요.", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);

@@ -20,6 +20,30 @@ from src.generators.skill_manager import setup_skills
 
 APP_NAME = "AgentSmith"
 
+ENGINE_LABELS = {
+    "Rule-based": "규칙 기반",
+    "LLM": "로컬 LLM",
+}
+
+
+def parse_version(version: str) -> tuple[int, int, int]:
+    parts = version.strip().lstrip("v").split(".")
+    numbers = []
+    for part in parts[:3]:
+        try:
+            numbers.append(int(part))
+        except ValueError:
+            numbers.append(0)
+    while len(numbers) < 3:
+        numbers.append(0)
+    return tuple(numbers)
+
+
+def is_remote_newer(local_version: str, remote_version: str) -> bool:
+    if local_version == "unknown" or not remote_version:
+        return False
+    return parse_version(remote_version) > parse_version(local_version)
+
 def get_base_dir() -> str:
     if not getattr(sys, "frozen", False):
         return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -48,7 +72,7 @@ class MainWindow:
         self.preview_text = ""
         self.setup_ui()
 
-        threading.Thread(target=self.check_for_updates, daemon=True).start()
+        threading.Thread(target=self.check_for_updates, args=(False,), daemon=True).start()
 
     def load_local_version(self) -> str:
         try:
@@ -57,27 +81,45 @@ class MainWindow:
         except Exception:
             return "unknown"
 
-    def check_for_updates(self) -> None:
+    def check_for_updates(self, manual: bool = False) -> None:
         try:
             req = urllib.request.Request(REMOTE_VERSION_URL, headers={"User-Agent": APP_NAME})
             with urllib.request.urlopen(req, timeout=5) as response:
                 remote_version = response.read().decode("utf-8").strip()
 
-            if remote_version and self.current_version != "unknown" and remote_version != self.current_version:
-                self.root.after(0, self.show_update_button, remote_version)
+            if is_remote_newer(self.current_version, remote_version):
+                self.root.after(0, lambda: self.handle_update_found(remote_version, manual))
+            else:
+                self.root.after(0, lambda: self.handle_no_update_found(manual))
         except Exception as exc:
-            print(f"Update check failed: {exc}")
+            self.root.after(0, lambda: self.handle_update_error(exc, manual))
 
-    def show_update_button(self, new_version: str) -> None:
-        self.update_btn = ttk.Button(
-            self.header_frame,
-            text=f"Update available: v{new_version}",
-            command=self.trigger_update,
-        )
-        self.update_btn.pack(side=tk.RIGHT, padx=10)
+    def manual_check_update(self) -> None:
+        self.btn_check_update.config(state=tk.DISABLED)
+        self.log("업데이트 확인 중...")
+        threading.Thread(target=self.check_for_updates, args=(True,), daemon=True).start()
+
+    def handle_update_found(self, new_version: str, manual: bool) -> None:
+        self.btn_check_update.config(state=tk.NORMAL, text=f"업데이트 설치: v{new_version}", command=self.trigger_update)
+        self.log(f"새로운 업데이트 버전을 발견했습니다: v{new_version}")
+        if manual:
+            if messagebox.askyesno("업데이트 발견", f"새로운 버전 v{new_version}이 존재합니다.\n지금 업데이트하시겠습니까?"):
+                self.trigger_update()
+
+    def handle_no_update_found(self, manual: bool) -> None:
+        self.btn_check_update.config(state=tk.NORMAL)
+        self.log("이미 최신 버전을 사용 중입니다.")
+        if manual:
+            messagebox.showinfo("업데이트 확인", f"현재 최신 버전을 사용 중입니다.\n(설치된 버전: v{self.current_version})")
+
+    def handle_update_error(self, exc: Exception, manual: bool) -> None:
+        self.btn_check_update.config(state=tk.NORMAL)
+        self.log(f"업데이트 확인 실패: {exc}")
+        if manual:
+            messagebox.showerror("업데이트 확인 실패", f"업데이트 정보를 확인하는 데 실패했습니다:\n{exc}")
 
     def trigger_update(self) -> None:
-        if not messagebox.askyesno("Update", "Close AgentSmith and update now?"):
+        if not messagebox.askyesno("업데이트", "AgentSmith를 종료하고 지금 업데이트할까요?"):
             return
 
         update_script = os.path.join(BASE_DIR, "update_and_build.bat")
@@ -85,7 +127,7 @@ class MainWindow:
             subprocess.Popen(f'start cmd /c "{update_script}"', shell=True)
             self.root.quit()
         else:
-            messagebox.showerror("Error", "Update script not found.")
+            messagebox.showerror("오류", "업데이트 스크립트를 찾을 수 없습니다.")
 
     def setup_ui(self) -> None:
         main_frame = ttk.Frame(self.root, padding="10")
@@ -99,43 +141,50 @@ class MainWindow:
             font=("Helvetica", 14, "bold"),
         ).pack(side=tk.LEFT)
 
-        path_frame = ttk.LabelFrame(main_frame, text="Project and input", padding="8")
+        self.btn_check_update = ttk.Button(
+            self.header_frame,
+            text="업데이트 확인",
+            command=self.manual_check_update
+        )
+        self.btn_check_update.pack(side=tk.RIGHT, padx=10)
+
+        path_frame = ttk.LabelFrame(main_frame, text="프로젝트 및 입력", padding="8")
         path_frame.pack(fill=tk.X, pady=5)
 
-        ttk.Label(path_frame, text="Project folder:").grid(row=0, column=0, sticky=tk.W)
+        ttk.Label(path_frame, text="프로젝트 폴더:").grid(row=0, column=0, sticky=tk.W)
         self.proj_var = tk.StringVar()
         ttk.Entry(path_frame, textvariable=self.proj_var, width=80).grid(row=0, column=1, padx=5, sticky=tk.EW)
-        ttk.Button(path_frame, text="Browse...", command=self.browse_proj).grid(row=0, column=2)
+        ttk.Button(path_frame, text="찾아보기...", command=self.browse_proj).grid(row=0, column=2)
 
-        ttk.Label(path_frame, text="Raw context file:").grid(row=1, column=0, sticky=tk.W)
+        ttk.Label(path_frame, text="원본 문맥 파일:").grid(row=1, column=0, sticky=tk.W)
         self.raw_var = tk.StringVar()
         ttk.Entry(path_frame, textvariable=self.raw_var, width=80).grid(row=1, column=1, padx=5, sticky=tk.EW)
-        ttk.Button(path_frame, text="Browse...", command=self.browse_raw).grid(row=1, column=2)
+        ttk.Button(path_frame, text="찾아보기...", command=self.browse_raw).grid(row=1, column=2)
         path_frame.columnconfigure(1, weight=1)
 
-        input_frame = ttk.LabelFrame(main_frame, text="Direct Korean context or task request", padding="8")
+        input_frame = ttk.LabelFrame(main_frame, text="한국어 문맥 또는 작업 요청 직접 입력", padding="8")
         input_frame.pack(fill=tk.BOTH, pady=5)
         self.txt_input = tk.Text(input_frame, height=7, wrap=tk.WORD)
         self.txt_input.pack(fill=tk.BOTH, expand=True)
 
-        opt_frame = ttk.LabelFrame(main_frame, text="Compiler options", padding="8")
+        opt_frame = ttk.LabelFrame(main_frame, text="컴파일 옵션", padding="8")
         opt_frame.pack(fill=tk.X, pady=5)
 
-        ttk.Label(opt_frame, text="Target agent:").grid(row=0, column=0, sticky=tk.W)
+        ttk.Label(opt_frame, text="대상 에이전트:").grid(row=0, column=0, sticky=tk.W)
         self.agent_var = tk.StringVar(value="Codex")
-        ttk.Radiobutton(opt_frame, text="Codex", variable=self.agent_var, value="Codex").grid(row=0, column=1, sticky=tk.W)
-        ttk.Radiobutton(opt_frame, text="Antigravity", variable=self.agent_var, value="Antigravity").grid(row=0, column=2, sticky=tk.W)
+        ttk.Radiobutton(opt_frame, text="코덱스 (Codex)", variable=self.agent_var, value="Codex").grid(row=0, column=1, sticky=tk.W)
+        ttk.Radiobutton(opt_frame, text="안티그래비티 (Antigravity)", variable=self.agent_var, value="Antigravity").grid(row=0, column=2, sticky=tk.W)
 
-        ttk.Label(opt_frame, text="Workflow:").grid(row=1, column=0, sticky=tk.W)
+        ttk.Label(opt_frame, text="작업 흐름:").grid(row=1, column=0, sticky=tk.W)
         self.workflow_var = tk.StringVar(value="Project Init")
-        ttk.Radiobutton(opt_frame, text="Project Init", variable=self.workflow_var, value="Project Init").grid(row=1, column=1, sticky=tk.W)
-        ttk.Radiobutton(opt_frame, text="Task Prompt", variable=self.workflow_var, value="Task Prompt").grid(row=1, column=2, sticky=tk.W)
-        ttk.Radiobutton(opt_frame, text="Full Bundle", variable=self.workflow_var, value="Full Bundle").grid(row=1, column=3, sticky=tk.W)
+        ttk.Radiobutton(opt_frame, text="프로젝트 초기 조건", variable=self.workflow_var, value="Project Init").grid(row=1, column=1, sticky=tk.W)
+        ttk.Radiobutton(opt_frame, text="작업 프롬프트", variable=self.workflow_var, value="Task Prompt").grid(row=1, column=2, sticky=tk.W)
+        ttk.Radiobutton(opt_frame, text="전체 번들", variable=self.workflow_var, value="Full Bundle").grid(row=1, column=3, sticky=tk.W)
 
-        ttk.Label(opt_frame, text="Engine:").grid(row=2, column=0, sticky=tk.W)
+        ttk.Label(opt_frame, text="변환 엔진:").grid(row=2, column=0, sticky=tk.W)
         self.mode_var = tk.StringVar(value="Rule-based")
-        ttk.Radiobutton(opt_frame, text="Rule-based", variable=self.mode_var, value="Rule-based").grid(row=2, column=1, sticky=tk.W)
-        ttk.Radiobutton(opt_frame, text="Local LLM", variable=self.mode_var, value="LLM").grid(row=2, column=2, sticky=tk.W)
+        ttk.Radiobutton(opt_frame, text="규칙 기반", variable=self.mode_var, value="Rule-based").grid(row=2, column=1, sticky=tk.W)
+        ttk.Radiobutton(opt_frame, text="로컬 LLM", variable=self.mode_var, value="LLM").grid(row=2, column=2, sticky=tk.W)
 
         self.chk_agents = tk.BooleanVar(value=True)
         self.chk_task = tk.BooleanVar(value=True)
@@ -144,26 +193,26 @@ class MainWindow:
         self.chk_skills = tk.BooleanVar(value=False)
         self.chk_tree = tk.BooleanVar(value=True)
 
-        ttk.Checkbutton(opt_frame, text="Rules file", variable=self.chk_agents).grid(row=3, column=0, sticky=tk.W)
-        ttk.Checkbutton(opt_frame, text="Task/planning files", variable=self.chk_task).grid(row=3, column=1, sticky=tk.W)
-        ttk.Checkbutton(opt_frame, text="Compact context", variable=self.chk_compact).grid(row=3, column=2, sticky=tk.W)
-        ttk.Checkbutton(opt_frame, text="Final bundle", variable=self.chk_bundle).grid(row=3, column=3, sticky=tk.W)
-        ttk.Checkbutton(opt_frame, text="Skills", variable=self.chk_skills).grid(row=4, column=1, sticky=tk.W)
-        ttk.Checkbutton(opt_frame, text="Project tree", variable=self.chk_tree).grid(row=4, column=2, sticky=tk.W)
+        ttk.Checkbutton(opt_frame, text="규칙 파일", variable=self.chk_agents).grid(row=3, column=0, sticky=tk.W)
+        ttk.Checkbutton(opt_frame, text="작업/계획 파일", variable=self.chk_task).grid(row=3, column=1, sticky=tk.W)
+        ttk.Checkbutton(opt_frame, text="압축 문맥", variable=self.chk_compact).grid(row=3, column=2, sticky=tk.W)
+        ttk.Checkbutton(opt_frame, text="최종 번들", variable=self.chk_bundle).grid(row=3, column=3, sticky=tk.W)
+        ttk.Checkbutton(opt_frame, text="스킬", variable=self.chk_skills).grid(row=4, column=1, sticky=tk.W)
+        ttk.Checkbutton(opt_frame, text="프로젝트 트리", variable=self.chk_tree).grid(row=4, column=2, sticky=tk.W)
 
         ctrl_frame = ttk.Frame(main_frame)
         ctrl_frame.pack(fill=tk.X, pady=5)
 
-        self.btn_start = ttk.Button(ctrl_frame, text="Compile", command=self.start_process)
+        self.btn_start = ttk.Button(ctrl_frame, text="컴파일", command=self.start_process)
         self.btn_start.pack(side=tk.LEFT, padx=5)
 
-        self.btn_stop = ttk.Button(ctrl_frame, text="Stop", command=self.stop_process, state=tk.DISABLED)
+        self.btn_stop = ttk.Button(ctrl_frame, text="중지", command=self.stop_process, state=tk.DISABLED)
         self.btn_stop.pack(side=tk.LEFT, padx=5)
 
-        self.btn_copy = ttk.Button(ctrl_frame, text="Copy preview", command=self.copy_preview)
+        self.btn_copy = ttk.Button(ctrl_frame, text="미리보기 복사", command=self.copy_preview)
         self.btn_copy.pack(side=tk.LEFT, padx=5)
 
-        self.lbl_tokens = ttk.Label(ctrl_frame, text="Estimated tokens: 0")
+        self.lbl_tokens = ttk.Label(ctrl_frame, text="예상 토큰 수: 0")
         self.lbl_tokens.pack(side=tk.RIGHT, padx=5)
 
         self.progress = ttk.Progressbar(ctrl_frame, mode="determinate")
@@ -172,12 +221,12 @@ class MainWindow:
         paned = ttk.PanedWindow(main_frame, orient=tk.HORIZONTAL)
         paned.pack(fill=tk.BOTH, expand=True, pady=5)
 
-        log_frame = ttk.LabelFrame(paned, text="Status log")
+        log_frame = ttk.LabelFrame(paned, text="상태 로그")
         self.txt_log = tk.Text(log_frame, height=10, width=42, wrap=tk.WORD)
         self.txt_log.pack(fill=tk.BOTH, expand=True)
         paned.add(log_frame, weight=1)
 
-        preview_frame = ttk.LabelFrame(paned, text="Preview")
+        preview_frame = ttk.LabelFrame(paned, text="미리보기")
         self.txt_preview = tk.Text(preview_frame, height=10, width=72, wrap=tk.WORD)
         self.txt_preview.pack(fill=tk.BOTH, expand=True)
         paned.add(preview_frame, weight=2)
@@ -190,9 +239,9 @@ class MainWindow:
     def browse_raw(self) -> None:
         file = filedialog.askopenfilename(
             filetypes=[
-                ("Markdown files", "*.md"),
-                ("Text files", "*.txt"),
-                ("All files", "*.*"),
+                ("마크다운 파일", "*.md"),
+                ("텍스트 파일", "*.txt"),
+                ("모든 파일", "*.*"),
             ]
         )
         if file:
@@ -208,16 +257,16 @@ class MainWindow:
             return
         self.root.clipboard_clear()
         self.root.clipboard_append(self.preview_text)
-        self.log("Preview copied to clipboard.")
+        self.log("미리보기를 클립보드에 복사했습니다.")
 
     def start_process(self) -> None:
         if not self.proj_var.get():
-            messagebox.showerror("Error", "Please select a project folder.")
+            messagebox.showerror("오류", "프로젝트 폴더를 선택하세요.")
             return
 
         direct_text = self.txt_input.get("1.0", tk.END).strip()
         if not self.raw_var.get() and not direct_text:
-            messagebox.showerror("Error", "Select a raw context file or enter direct context text.")
+            messagebox.showerror("오류", "원본 문맥 파일을 선택하거나 직접 문맥을 입력하세요.")
             return
 
         self.running = True
@@ -227,13 +276,13 @@ class MainWindow:
         self.preview_text = ""
         self.txt_log.delete(1.0, tk.END)
         self.txt_preview.delete(1.0, tk.END)
-        self.lbl_tokens.config(text="Estimated tokens: 0")
+        self.lbl_tokens.config(text="예상 토큰 수: 0")
 
         threading.Thread(target=self.run_pipeline, daemon=True).start()
 
     def stop_process(self) -> None:
         self.running = False
-        self.log("Stopping process...")
+        self.log("작업을 중지하는 중...")
 
     def collect_input(self) -> tuple[str, list[str]]:
         input_parts: list[str] = []
@@ -241,13 +290,13 @@ class MainWindow:
 
         raw_file = self.raw_var.get().strip()
         if raw_file:
-            self.log("Reading raw context file...")
+            self.log("원본 문맥 파일을 읽는 중...")
             warnings.extend(get_warnings_for_inclusion(raw_file))
             raw_text = read_file(raw_file)
             if raw_text:
                 input_parts.append(raw_text)
             else:
-                warnings.append(f"Could not read raw context file: {raw_file}")
+                warnings.append(f"원본 문맥 파일을 읽지 못했습니다: {raw_file}")
 
         direct_text = self.txt_input.get("1.0", tk.END).strip()
         if direct_text:
@@ -256,20 +305,21 @@ class MainWindow:
         return "\n\n".join(input_parts), warnings
 
     def convert_context(self, raw_text: str) -> dict[str, list[str]]:
-        self.log(f"Converting with {self.mode_var.get()} engine...")
+        engine_label = ENGINE_LABELS.get(self.mode_var.get(), self.mode_var.get())
+        self.log(f"{engine_label} 엔진으로 변환하는 중...")
         if self.mode_var.get() != "LLM":
             return convert_rule_based(raw_text)
 
-        self.log("Detecting local Ollama model...")
+        self.log("로컬 Ollama 모델을 확인하는 중...")
         model = select_best_model()
         if model.startswith("ollama_"):
-            self.log(f"Local LLM unavailable: {model}. Falling back to rule-based.")
+            self.log(f"로컬 LLM을 사용할 수 없습니다: {model}. 규칙 기반으로 전환합니다.")
             return convert_rule_based(raw_text)
         if model.startswith("recommend:"):
-            self.log(f"Recommended model is not installed: {model.split(':', 1)[1]}. Falling back to rule-based.")
+            self.log(f"추천 모델이 설치되어 있지 않습니다: {model.split(':', 1)[1]}. 규칙 기반으로 전환합니다.")
             return convert_rule_based(raw_text)
 
-        self.log(f"Using model: {model}")
+        self.log(f"사용 모델: {model}")
         return convert_llm_based(raw_text, model)
 
     def run_pipeline(self) -> None:
@@ -277,7 +327,7 @@ class MainWindow:
             proj_dir = self.proj_var.get()
             raw_text, warnings = self.collect_input()
             if not raw_text:
-                self.log("No input text available.")
+                self.log("입력 문맥이 없습니다.")
                 return
             self.progress["value"] = 15
 
@@ -287,7 +337,7 @@ class MainWindow:
 
             tree_str = ""
             if self.chk_tree.get():
-                self.log("Generating project tree...")
+                self.log("프로젝트 트리를 생성하는 중...")
                 tree_str = generate_project_tree(proj_dir)
 
             if not self.running:
@@ -307,19 +357,19 @@ class MainWindow:
 
             for relative_path, content in outputs.items():
                 write_file(os.path.join(proj_dir, relative_path), content)
-                self.log(f"Created {relative_path}")
+                self.log(f"생성 완료: {relative_path}")
 
             if self.chk_skills.get():
-                self.log("Setting up skill templates...")
+                self.log("스킬 템플릿을 생성하는 중...")
                 setup_skills(proj_dir)
 
             self.preview_text = preview
             self.txt_preview.insert(tk.END, preview)
-            self.lbl_tokens.config(text=f"Estimated tokens: {estimate_tokens(preview)}")
+            self.lbl_tokens.config(text=f"예상 토큰 수: {estimate_tokens(preview)}")
             self.progress["value"] = 100
-            self.log("Finished successfully.")
+            self.log("작업이 완료되었습니다.")
         except Exception as exc:
-            self.log(f"Error: {exc}")
+            self.log(f"오류: {exc}")
         finally:
             self.btn_start.config(state=tk.NORMAL)
             self.btn_stop.config(state=tk.DISABLED)
