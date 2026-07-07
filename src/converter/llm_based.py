@@ -1,45 +1,69 @@
+from __future__ import annotations
+
 import json
+
+from src.converter.schema import empty_context, normalize_context
+
 try:
     import ollama
-except ImportError:
-    pass
+except ImportError:  # pragma: no cover - optional runtime dependency
+    ollama = None
+
 
 PROMPT_TEMPLATE = """
-다음의 거친 한국어 프로젝트 노트와 컨텍스트를 분석하여 AI 코딩 에이전트가 이해하기 쉬운 형태의 JSON으로 변환해줘.
-감정적인 표현이나 중복된 내용은 제거하고, 간결한 기술적 영어(Technical English) 요약(Bullet point 형식)으로 작성해줘. 한국어는 필요한 경우에만 유지해.
+You are AgentSmith's local context compiler.
 
-반드시 다음 JSON 스키마를 엄격하게 준수해서 출력해:
+Convert the user's rough Korean project notes or task request into strict JSON for coding agents.
+Optimize for token efficiency and operational clarity.
+
+Rules:
+- Remove repetition, emotional background, and conversational filler.
+- Preserve exact file paths, commands, tool names, version numbers, and forbidden actions.
+- Do not invent facts.
+- Use concise Controlled Technical English unless Korean is necessary for domain meaning.
+- Separate stable project rules from current task instructions.
+- Return JSON only.
+
+Required schema:
 {
-  "project": ["project description bullet 1", "bullet 2"],
-  "environment": ["env detail 1", "env detail 2"],
-  "workflow": ["step 1", "step 2"],
-  "rules": ["coding rule 1", "rule 2"],
-  "forbidden": ["forbidden action 1"],
-  "verification": ["test command 1"]
+  "project": ["short project identity bullets"],
+  "goal": ["what the user wants to achieve"],
+  "context": ["important background"],
+  "environment": ["OS, runtime, dependencies, tools"],
+  "workflow": ["development, deployment, update, or collaboration workflow"],
+  "rules": ["stable coding or project rules"],
+  "constraints": ["scope limits or conditions"],
+  "forbidden": ["actions the agent must not take"],
+  "verification": ["commands or checks to run"],
+  "output_format": ["how the agent should report or format output"],
+  "files": ["explicit file paths or filenames"],
+  "warnings": ["risks that should be surfaced"]
 }
 
-원본 텍스트:
+Raw input:
 {raw_text}
 """
 
-def convert_llm_based(raw_text: str, model_name: str) -> dict:
-    """
-    Mode B: High-quality LLM-based semantic compression.
-    """
+
+def convert_llm_based(raw_text: str, model_name: str) -> dict[str, list[str]]:
+    """High-quality semantic compression using a local Ollama model."""
+    if ollama is None:
+        result = empty_context()
+        result["warnings"].append("Ollama Python package is not installed.")
+        return result
+
     prompt = PROMPT_TEMPLATE.replace("{raw_text}", raw_text)
-    
+
     try:
         response = ollama.chat(
             model=model_name,
-            messages=[{'role': 'user', 'content': prompt}],
-            options={'temperature': 0.0},
-            format='json'
+            messages=[{"role": "user", "content": prompt}],
+            options={"temperature": 0.0},
+            format="json",
         )
-        
-        result_text = response['message']['content']
-        return json.loads(result_text)
-    except Exception as e:
-        print(f"LLM Conversion Error: {e}")
-        return {
-            "error": str(e)
-        }
+        result_text = response["message"]["content"]
+        return normalize_context(json.loads(result_text))
+    except Exception as exc:
+        result = empty_context()
+        result["warnings"].append(f"LLM conversion failed: {exc}")
+        return result

@@ -3,7 +3,7 @@ from src.gui.main_window import MainWindow
 
 def main():
     root = tk.Tk()
-    root.title("Context Compiler")
+    root.title("AgentSmith")
     app = MainWindow(root)
     root.mainloop()
 

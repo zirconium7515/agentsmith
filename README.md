@@ -1,40 +1,78 @@
-# Context Compiler
+# AgentSmith
 
-Context Compiler is a local GUI tool that converts rough, unstructured project notes (e.g., long Korean explanations) into token-efficient, strictly formatted Markdown files optimized for AI coding agents like Codex, Antigravity, and Claude.
+AgentSmith is a local GUI context compiler for coding agents.
 
-By passing your project context through this compiler, you provide AI agents with a much cleaner, deterministic environment, preventing hallucinations and workflow deviations.
+It converts rough Korean project notes, initial project conditions, and task requests into token-efficient agent-facing files and copy-ready prompts.
 
-## Features
+## Core Use Cases
 
-- **Token Optimization**: Strips emotional/filler text and converts sentences into concise technical bullet points.
-- **Dual Engine**: 
-  - **Rule-based (Fast)**: Offline, regex-based keyword classification and deduplication.
-  - **Local LLM (High Quality)**: Integrates with local `Ollama` to enforce strict JSON schemas and high-quality semantic compression.
-- **Safety First**: Automatically detects large files, raw data directories, and Google Drive sync conflicts.
-- **Skill Generation**: Automatically scaffolds `.agents/skills/` directories with standard reusable workflows (Code Review, Safe Refactor, Git Backup).
+- Create project startup context for coding agents.
+- Convert Korean natural-language task requests into structured prompts.
+- Generate Codex-oriented context files.
+- Generate Google Antigravity-oriented planning artifacts.
+- Keep project workflow, forbidden actions, verification commands, and output format explicit.
 
-## Installation
+## Target Agents
+
+AgentSmith supports target-specific rendering.
+
+### Codex
+
+Typical outputs:
+
+- `AGENTS.md`
+- `TASK.md`
+- `CONTEXT.compact.md`
+- `CONTEXT_FOR_AI.md`
+- optional `.agents/skills/*/SKILL.md`
+
+### Google Antigravity
+
+Typical outputs:
+
+- `.agents/AGENTS.md`
+- `implementation_plan.md`
+- `task.md`
+- `walkthrough.md`
+- `CONTEXT.compact.md`
+- `CONTEXT_FOR_ANTIGRAVITY.md`
+
+Antigravity output is designed around planning artifacts, task state, final walkthroughs, and rich Markdown review documents.
+
+## Compiler Modes
+
+- **Project Init**: Generate startup rules and compact project context.
+- **Task Prompt**: Convert a Korean task request into a copy-ready coding-agent prompt.
+- **Full Bundle**: Generate rules, task/planning files, compact context, and final bundle.
+
+## Conversion Engines
+
+- **Rule-based**: Fast, offline, deterministic cleanup and classification.
+- **Local LLM**: Uses Ollama for higher-quality semantic compression and JSON schema output.
+
+## Installation For Development
 
 ```bash
-# Clone the repository
-git clone https://github.com/yourusername/context-compiler.git
-cd context-compiler
-
-# Install dependencies
 pip install -r requirements.txt
-```
-
-## Usage
-
-Ensure you have [Ollama](https://ollama.ai/) installed and running if you intend to use the Local LLM mode.
-
-```bash
 python main.py
 ```
 
-1. Select your target project folder.
-2. Select your raw context file (e.g., `CONTEXT.raw.ko.md`).
-3. Choose the conversion mode (Rule-based or LLM).
-4. Click **Start**.
+## Distribution Model
 
-The compiler will generate standard agent files (`AGENTS.md`, `TASK.md`, `CONTEXT.compact.md`, and a final `CONTEXT_FOR_AI.md` bundle) directly into your selected project folder.
+The intended user flow is:
+
+1. Download `AgentSmith_Installer.exe`.
+2. Choose an installation folder.
+3. The installer prepares Git/Python if needed, clones this repository, installs dependencies, builds the GUI exe, and launches AgentSmith.
+4. On startup, AgentSmith checks GitHub `VERSION.txt`.
+5. If a newer version exists, an update button appears.
+6. The user can keep using the app or trigger update and rebuild.
+7. To uninstall, run `uninstall.bat` from the installation folder.
+
+## Versioning
+
+AgentSmith follows Semantic Versioning.
+
+- Patch: fixes and small maintenance changes.
+- Minor: backward-compatible feature additions.
+- Major: breaking workflow or file format changes.
