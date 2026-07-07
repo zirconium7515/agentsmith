@@ -187,11 +187,13 @@ class MainWindow:
         ttk.Radiobutton(opt_frame, text="로컬 LLM", variable=self.mode_var, value="LLM").grid(row=2, column=2, sticky=tk.W)
 
         self.chk_agents = tk.BooleanVar(value=True)
-        self.chk_task = tk.BooleanVar(value=True)
+        self.chk_task = tk.BooleanVar(value=False)
         self.chk_compact = tk.BooleanVar(value=True)
         self.chk_bundle = tk.BooleanVar(value=True)
         self.chk_skills = tk.BooleanVar(value=False)
         self.chk_tree = tk.BooleanVar(value=True)
+
+        self.workflow_var.trace_add("write", self.on_workflow_change)
 
         ttk.Checkbutton(opt_frame, text="규칙 파일", variable=self.chk_agents).grid(row=3, column=0, sticky=tk.W)
         ttk.Checkbutton(opt_frame, text="작업/계획 파일", variable=self.chk_task).grid(row=3, column=1, sticky=tk.W)
@@ -374,3 +376,9 @@ class MainWindow:
             self.btn_start.config(state=tk.NORMAL)
             self.btn_stop.config(state=tk.DISABLED)
             self.running = False
+
+    def on_workflow_change(self, *args) -> None:
+        if self.workflow_var.get() == "Project Init":
+            self.chk_task.set(False)
+        else:
+            self.chk_task.set(True)

@@ -48,7 +48,9 @@ KEYWORDS = {
         "진행",
         "프로세스",
         "구글 드라이브",
+        "구글드라이브",
         "google drive",
+        "googledrive",
         "github",
         "git pull",
         "배포",
@@ -67,6 +69,36 @@ KEYWORDS = {
         "정책",
         "rule",
         "policy",
+    ],
+    "git_rules": [
+        "git push",
+        "commit",
+        "커밋",
+        "브랜치",
+        "branch",
+        "github",
+        "깃헙",
+        "깃허브",
+    ],
+    "versioning_rules": [
+        "버전",
+        "vx.y.z",
+        "version",
+        "패치",
+        "인덱스",
+    ],
+    "dependency_rules": [
+        "venv",
+        "dependency",
+        "의존성",
+        "pip",
+        "패키지",
+    ],
+    "ignore_rules": [
+        "gitignore",
+        "무거운",
+        "제외",
+        "ignore",
     ],
     "constraints": [
         "제약",
@@ -150,15 +182,19 @@ def classify_line(line: str) -> str:
     lowered = line.lower()
     for field in (
         "forbidden",
-        "verification",
+        "ignore_rules",
+        "dependency_rules",
+        "versioning_rules",
+        "git_rules",
         "workflow",
+        "verification",
         "environment",
         "goal",
         "constraints",
         "rules",
         "output_format",
     ):
-        if any(keyword in lowered for keyword in KEYWORDS[field]):
+        if field in KEYWORDS and any(keyword in lowered for keyword in KEYWORDS[field]):
             return field
     return "context"
 
