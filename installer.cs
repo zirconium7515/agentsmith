@@ -232,7 +232,7 @@ namespace AgentSmithInstaller
                             Process.Start(psi);
                         }
                         
-                        Application.Exit();
+                        Environment.Exit(0);
                     }));
                 }
                 catch (Exception ex)
