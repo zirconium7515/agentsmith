@@ -1,0 +1,66 @@
+Project Workflow
+Editing Rules
+Google Drive Safety
+Data Safety
+Dependency Policy
+Git Rules
+Verification
+Final Report Format
+
+## Project Workflow
+- The source of truth is the Google Drive mirrored workspace.
+- Active development happens directly in the Google Drive mirrored workspace.
+- GitHub is used for backup, version tracking, deployment, and distribution.
+- Runtime machines receive code updates through `git pull` from GitHub.
+- Do not assume any runtime folder is the primary development folder.
+- Do not propose changing this workflow to a separate clone or worktree.
+
+## Editing Rules
+- Make minimal, focused changes.
+- Inspect relevant files before editing.
+- Do not refactor unrelated code.
+- Do not rename files, folders, public functions, config keys, or output columns unless explicitly requested.
+- Preserve the current project structure.
+- Preserve existing Korean comments and UI text unless the task is specifically about language cleanup.
+- Use English for technical identifiers and agent-facing documentation.
+
+## Google Drive Safety
+- Assume files are synchronized by Google Drive.
+- Avoid rapid mass file creation, deletion, or renaming.
+- Do not create unnecessary duplicate files.
+- Do not overwrite large files blindly.
+- Do not modify Google Drive sync settings.
+- Do not move the project folder.
+- If a file conflict or duplicate sync file is detected, report it before editing.
+
+## Data Safety
+- Treat raw experiment data as read-only.
+- Never delete or overwrite files under:
+  - `data/`
+  - `raw/`
+  - `backup/`
+  - `archive/`
+  - `results/raw/`
+- Never modify original `.txt`, `.bmp`, `.jpg`, `.png`, `.csv`, or measurement files unless explicitly requested.
+- Derived outputs must be written only to configured output folders.
+- Preserve original filenames in output metadata when possible.
+
+## Dependency Policy
+- Do not add dependencies unless necessary.
+
+## Verification
+After changes, run the smallest relevant verification command.
+Prefer these checks when applicable:
+- Python syntax check: `python -m compileall .`
+- Test command: `pytest`
+- GUI startup command: `python main.py`
+- Script dry run if available
+If verification cannot be run, explain why.
+
+## Final Report Format
+Always report:
+- root cause
+- changed files
+- commands run
+- verification result
+- remaining risks

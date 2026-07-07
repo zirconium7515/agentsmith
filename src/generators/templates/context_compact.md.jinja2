@@ -1,0 +1,46 @@
+# Compact Context
+
+## Project
+{% for item in project %}
+- {{ item }}
+{% endfor %}
+
+## Environment
+{% for item in environment %}
+- {{ item }}
+{% endfor %}
+
+## Workflow
+- Source of truth: Google Drive mirrored workspace.
+- GitHub is used for backup, version tracking, deployment, and distribution.
+- Runtime machines receive updates through `git pull`.
+- Do not treat runtime folders as primary development folders.
+- Do not suggest clone or worktree alternatives.
+{% for item in workflow %}
+- {{ item }}
+{% endfor %}
+
+## Data Rules
+- Raw experiment data is read-only.
+- Do not delete or overwrite raw data.
+- Derived outputs must go to configured output folders.
+
+## Coding Rules
+- Make minimal focused changes.
+- Avoid unrelated refactoring.
+- Preserve existing file paths and output naming conventions.
+{% for item in rules %}
+- {{ item }}
+{% endfor %}
+
+## Forbidden Actions
+{% for item in forbidden %}
+- {{ item }}
+{% endfor %}
+
+## Verification
+- Run the smallest relevant test or startup command.
+- Report changed files and commands run.
+{% for item in verification %}
+- {{ item }}
+{% endfor %}
