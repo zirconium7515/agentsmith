@@ -21,11 +21,11 @@ python -c "import tkinter" >nul 2>&1
 if %ERRORLEVEL% NEQ 0 (
     echo [오류] 현재 Python 환경에 tkinter가 설치되어 있지 않습니다.
     echo.
-    echo Tkinter는 Python 표준 라이브러리로, Python 설치 시 'tcl/tk and IDLE' 옵션을 선택해야 설치됩니다.
+    echo Tkinter는 Python 표준 라이브러리로, Python 설치 시 tcl/tk and IDLE 옵션을 선택해야 설치됩니다.
     echo.
     echo 해결 방법:
-    echo 1. Windows 제어판 - 프로그램 추가/제거에서 Python을 찾아 '변경(Modify)'을 누릅니다.
-    echo 2. 'Modify'를 클릭한 뒤, 'tcl/tk and IDLE' 체크박스를 선택하고 설치를 완료하십시오.
+    echo 1. Windows 제어판 - 프로그램 추가/제거에서 Python을 찾아 변경 또는 Modify 버튼을 누릅니다.
+    echo 2. Modify를 클릭한 뒤, tcl/tk and IDLE 체크박스를 선택하고 설치를 완료하십시오.
     echo.
     pause
     exit /b 1
