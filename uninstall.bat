@@ -1,6 +1,5 @@
 @echo off
-chcp 65001 >nul
-setlocal EnableDelayedExpansion
+@chcp 65001 >nul
 
 :: ------------------------------------------------------------
 :: AgentSmith 완전 삭제 스크립트
@@ -16,7 +15,7 @@ setlocal EnableDelayedExpansion
 
 rem ----- 1. 삭제 대상 폴더 경로 확보 (스크립트가 위치한 폴더) -----
 set "TARGET_DIR=%~dp0"
-if "%TARGET_DIR:~-1%"=="\" set "TARGET_DIR=%TARGET_DIR:~0,-1%"
+if "%TARGET_DIR:~-1%"=="\\" set "TARGET_DIR=%TARGET_DIR:~0,-1%"
 
 rem ----- 2. 사용자 확인 -----
 echo 이 작업은 "%TARGET_DIR%" 폴더와 그 안의 모든 파일을
@@ -36,13 +35,14 @@ for %%P in (AgentSmith.exe AgentSmith_Installer.exe python.exe) do (
 timeout /t 2 /nobreak >nul
 
 rem ----- 4. 스크립트를 TEMP 로 복사하고, 복사본 실행 -----
-copy "%~f0" "%TEMP%\AgentSmith_Uninstall_Temp.bat" >nul
-start "" cmd /c "%TEMP%\AgentSmith_Uninstall_Temp.bat" RUN_FROM_TEMP "%TARGET_DIR%"
+copy "%~f0" "%TEMP%\\AgentSmith_Uninstall_Temp.bat" >nul
+start "" cmd /c "%TEMP%\\AgentSmith_Uninstall_Temp.bat" RUN_FROM_TEMP "%TARGET_DIR%"
 exit /b
 
 rem ==============================================================
-rem === 아래 코드는 TEMP 로 복사된 파일이 RUN_FROM_TEMP 플래그와 함께 실행될 때만 동작 ===
+rem === 아래 코드는 TEMP 로 복사된 파일이 RUN_FROM_TEMP 플래그와 함께 실행될 때만 동작합니다 ===
 rem ==============================================================
+
 if "%~1" NEQ "RUN_FROM_TEMP" goto :eof
 set "TARGET_DIR=%~2"
 
@@ -58,12 +58,14 @@ if %ERRORLEVEL% EQU 0 (
     echo PowerShell 로 폴더 삭제 성공.
     goto CLEANUP
 )
+
 rem ----- 7. fallback: cmd rd -----
 rd /s /q "%TARGET_DIR%" >nul 2>&1
 if not exist "%TARGET_DIR%" (
     echo cmd rd 로 폴더 삭제 성공.
     goto CLEANUP
 )
+
 rem ----- 8. 재시도 로직 -----
 set /a attempt+=1
 if %attempt% LSS %MAX_RETRIES% (
@@ -78,23 +80,23 @@ if %attempt% LSS %MAX_RETRIES% (
         echo timeout /t 2 /nobreak >nul
         echo rd /s /q "%TARGET_DIR%" >nul 2>&1
         echo del "%%~f0" >nul 2>&1
-    ) > "%TEMP%\AgentSmith_FinalDelete.bat"
-    start "" cmd /c "%TEMP%\AgentSmith_FinalDelete.bat"
+    ) > "%TEMP%\\AgentSmith_FinalDelete.bat"
+    start "" cmd /c "%TEMP%\\AgentSmith_FinalDelete.bat"
     goto END
 )
 
-:CLEANUP
 rem ----- 10. 성공 시 스크립트 자체 삭제 -----
-echo 폴더 삭제가 완료되었습니다.
-del "%~f0" >nul 2>&1
-exit /b
+:CLEANUP
+ echo 폴더 삭제가 완료되었습니다.
+ del "%~f0" >nul 2>&1
+ exit /b
 
 :END
-echo 최종 삭제가 완료되지 않았습니다. 아래 항목을 확인하고 다시 시도하세요.
-echo   1) 구글 드라이브 / OneDrive 동기화 중
-echo   2) 파일 탐색기, VS Code 등에서 폴더가 열려 있음
-echo   3) 남아있는 백그라운드 프로세스
-echo   4) 관리자 권한 부족
-pause
-del "%~f0" >nul 2>&1
-exit /b
+ echo 최종 삭제가 완료되지 않았습니다. 아래 항목을 확인하고 다시 시도하세요.
+ echo   1) 구글 드라이브 / OneDrive 동기화 중
+ echo   2) 파일 탐색기, VS Code 등에서 폴더가 열려 있음
+ echo   3) 남아있는 백그라운드 프로세스
+ echo   4) 관리자 권한 부족
+ pause
+ del "%~f0" >nul 2>&1
+ exit /b
