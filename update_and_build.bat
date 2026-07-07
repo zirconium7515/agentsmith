@@ -11,7 +11,7 @@ pip install -r requirements.txt
 pip install pyinstaller
 
 echo 3. Building AgentSmith.exe...
-pyinstaller --noconfirm --onedir --windowed --name "AgentSmith" main.py
+python -m PyInstaller --noconfirm --onedir --windowed --name "AgentSmith" main.py
 
 echo =======================================
 echo Update and Build Complete!
