@@ -218,8 +218,7 @@ namespace AgentSmithInstaller
 
                     this.Invoke(new Action(() => {
                         progressBar.Visible = false;
-                        lblStatus.Text = "초기 셋업 및 빌드 완료!";
-                        MessageBox.Show("AgentSmith 설치 및 빌드가 완벽하게 마무리되었습니다!\n프로그램이 시작됩니다.", "설치 완료", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        lblStatus.Text = "초기 셋업 및 빌드 완료! 프로그램을 시작합니다...";
                         
                         // 직접 exe 실행 (단독 프로세스)
                         string exePath = Path.Combine(installDir, @"dist\AgentSmith\AgentSmith.exe");
