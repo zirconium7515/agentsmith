@@ -64,7 +64,7 @@ REMOTE_VERSION_URL = "https://raw.githubusercontent.com/zirconium7515/agentsmith
 class MainWindow:
     def __init__(self, root: tk.Tk):
         self.root = root
-        self.root.geometry("1000x760")
+        self.root.geometry("1150x850")
         self.root.title(APP_NAME)
 
         self.running = False
@@ -180,6 +180,7 @@ class MainWindow:
         ttk.Radiobutton(opt_frame, text="프로젝트 초기 조건", variable=self.workflow_var, value="Project Init").grid(row=1, column=1, sticky=tk.W)
         ttk.Radiobutton(opt_frame, text="작업 프롬프트", variable=self.workflow_var, value="Task Prompt").grid(row=1, column=2, sticky=tk.W)
         ttk.Radiobutton(opt_frame, text="전체 번들", variable=self.workflow_var, value="Full Bundle").grid(row=1, column=3, sticky=tk.W)
+        ttk.Radiobutton(opt_frame, text="프롬프트만", variable=self.workflow_var, value="Prompt Only").grid(row=1, column=4, sticky=tk.W)
 
         ttk.Label(opt_frame, text="변환 엔진:").grid(row=2, column=0, sticky=tk.W)
         self.mode_var = tk.StringVar(value="Rule-based")
@@ -195,12 +196,18 @@ class MainWindow:
 
         self.workflow_var.trace_add("write", self.on_workflow_change)
 
-        ttk.Checkbutton(opt_frame, text="규칙 파일", variable=self.chk_agents).grid(row=3, column=0, sticky=tk.W)
-        ttk.Checkbutton(opt_frame, text="작업/계획 파일", variable=self.chk_task).grid(row=3, column=1, sticky=tk.W)
-        ttk.Checkbutton(opt_frame, text="압축 문맥", variable=self.chk_compact).grid(row=3, column=2, sticky=tk.W)
-        ttk.Checkbutton(opt_frame, text="최종 번들", variable=self.chk_bundle).grid(row=3, column=3, sticky=tk.W)
-        ttk.Checkbutton(opt_frame, text="스킬", variable=self.chk_skills).grid(row=4, column=1, sticky=tk.W)
-        ttk.Checkbutton(opt_frame, text="프로젝트 트리", variable=self.chk_tree).grid(row=4, column=2, sticky=tk.W)
+        self.btn_chk_agents = ttk.Checkbutton(opt_frame, text="규칙 파일", variable=self.chk_agents)
+        self.btn_chk_agents.grid(row=3, column=0, sticky=tk.W)
+        self.btn_chk_task = ttk.Checkbutton(opt_frame, text="작업/계획 파일", variable=self.chk_task)
+        self.btn_chk_task.grid(row=3, column=1, sticky=tk.W)
+        self.btn_chk_compact = ttk.Checkbutton(opt_frame, text="압축 문맥", variable=self.chk_compact)
+        self.btn_chk_compact.grid(row=3, column=2, sticky=tk.W)
+        self.btn_chk_bundle = ttk.Checkbutton(opt_frame, text="최종 번들", variable=self.chk_bundle)
+        self.btn_chk_bundle.grid(row=3, column=3, sticky=tk.W)
+        self.btn_chk_skills = ttk.Checkbutton(opt_frame, text="스킬", variable=self.chk_skills)
+        self.btn_chk_skills.grid(row=4, column=1, sticky=tk.W)
+        self.btn_chk_tree = ttk.Checkbutton(opt_frame, text="프로젝트 트리", variable=self.chk_tree)
+        self.btn_chk_tree.grid(row=4, column=2, sticky=tk.W)
 
         ctrl_frame = ttk.Frame(main_frame)
         ctrl_frame.pack(fill=tk.X, pady=5)
@@ -232,6 +239,8 @@ class MainWindow:
         self.txt_preview = tk.Text(preview_frame, height=10, width=72, wrap=tk.WORD)
         self.txt_preview.pack(fill=tk.BOTH, expand=True)
         paned.add(preview_frame, weight=2)
+
+        self.on_workflow_change()
 
     def browse_proj(self) -> None:
         folder = filedialog.askdirectory()
@@ -323,7 +332,7 @@ class MainWindow:
     def run_pipeline(self) -> None:
         try:
             proj_dir = self.proj_var.get().strip()
-            if not proj_dir:
+            if not proj_dir and self.workflow_var.get() != "Prompt Only":
                 self.log("[경고] 프로젝트 폴더가 지정되지 않아 파일 저장 및 트리 생성은 생략됩니다.")
 
             raw_text, warnings = self.collect_input()
@@ -380,7 +389,52 @@ class MainWindow:
             self.running = False
 
     def on_workflow_change(self, *args) -> None:
-        if self.workflow_var.get() == "Project Init":
+        mode = self.workflow_var.get()
+        if mode == "Prompt Only":
+            if not hasattr(self, "_in_prompt_only") or not self._in_prompt_only:
+                self._saved_chk_states = {
+                    "agents": self.chk_agents.get(),
+                    "task": self.chk_task.get(),
+                    "compact": self.chk_compact.get(),
+                    "bundle": self.chk_bundle.get(),
+                    "skills": self.chk_skills.get(),
+                    "tree": self.chk_tree.get(),
+                }
+                self._in_prompt_only = True
+
+            self.chk_agents.set(False)
             self.chk_task.set(False)
+            self.chk_compact.set(False)
+            self.chk_bundle.set(False)
+            self.chk_skills.set(False)
+            self.chk_tree.set(False)
+
+            self.btn_chk_agents.config(state=tk.DISABLED)
+            self.btn_chk_task.config(state=tk.DISABLED)
+            self.btn_chk_compact.config(state=tk.DISABLED)
+            self.btn_chk_bundle.config(state=tk.DISABLED)
+            self.btn_chk_skills.config(state=tk.DISABLED)
+            self.btn_chk_tree.config(state=tk.DISABLED)
         else:
-            self.chk_task.set(True)
+            self.btn_chk_agents.config(state=tk.NORMAL)
+            self.btn_chk_task.config(state=tk.NORMAL)
+            self.btn_chk_compact.config(state=tk.NORMAL)
+            self.btn_chk_bundle.config(state=tk.NORMAL)
+            self.btn_chk_skills.config(state=tk.NORMAL)
+            self.btn_chk_tree.config(state=tk.NORMAL)
+
+            if hasattr(self, "_in_prompt_only") and self._in_prompt_only:
+                self._in_prompt_only = False
+                if hasattr(self, "_saved_chk_states"):
+                    self.chk_agents.set(self._saved_chk_states["agents"])
+                    self.chk_task.set(self._saved_chk_states["task"])
+                    self.chk_compact.set(self._saved_chk_states["compact"])
+                    self.chk_bundle.set(self._saved_chk_states["bundle"])
+                    self.chk_skills.set(self._saved_chk_states["skills"])
+                    self.chk_tree.set(self._saved_chk_states["tree"])
+
+            # Apply normal modes check logic
+            if mode == "Project Init":
+                self.chk_task.set(False)
+            else:
+                self.chk_task.set(True)

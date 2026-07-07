@@ -475,6 +475,13 @@ def build_agent_outputs(
     include_bundle: bool = True,
 ) -> tuple[dict[str, str], str]:
     data = normalize_context(context_data)
+    
+    if workflow_mode == "Prompt Only":
+        from src.generators.prompt_composer import compose_prompt
+        preview = compose_prompt(data, target_agent)
+        token_note = f"\n\n---\nEstimated preview tokens: {estimate_tokens(preview)}\n" if preview else ""
+        return {}, preview + token_note
+
     target = target_agent.lower()
     outputs: dict[str, str] = {}
 
