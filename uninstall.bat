@@ -32,8 +32,14 @@ exit
 :DeleteFolder
 set "TARGET_DIR=%~2"
 echo.
+echo [진행] 실행 중인 앱을 종료하는 중입니다...
+taskkill /f /im AgentSmith.exe >nul 2>&1
+taskkill /f /im AgentSmith_Installer.exe >nul 2>&1
 echo [진행] 앱 종료 및 폴더 잠금을 해제하는 중입니다 (2초 대기)...
 timeout /t 2 /nobreak >nul
+
+echo [진행] 폴더 내 읽기 전용 속성을 해제하고 있습니다 (시간이 소요될 수 있습니다)...
+attrib -r -s -h "%TARGET_DIR%\*.*" /s /d >nul 2>&1
 
 echo [진행] %TARGET_DIR% 폴더를 삭제하고 있습니다...
 rmdir /s /q "%TARGET_DIR%"
