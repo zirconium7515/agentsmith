@@ -9,9 +9,9 @@ echo.
 
 :: 1. 윈도우 폴더 선택 창(GUI) 띄우기
 echo [안내] 팝업창에서 AgentSmith를 설치할 폴더를 선택해 주세요.
-echo (팝업창이 화면 뒤에 가려져 있을 수 있으니 작업 표시줄을 확인하세요.)
+echo (팝업창이 뜨지 않는다면 화면 뒤나 아래 작업표시줄을 확인하세요.)
 set "INSTALL_DIR="
-for /f "usebackq tokens=*" %%I in (`powershell -NoProfile -Command "Add-Type -AssemblyName System.windows.forms | Out-Null; $f = New-Object System.Windows.Forms.FolderBrowserDialog; $f.Description = 'AgentSmith를 설치할 최상위 폴더를 선택하세요 (이 폴더 안에 agentsmith 폴더가 생성됩니다)'; $f.ShowNewFolderButton = $true; $f.RootFolder = 'MyComputer'; if($f.ShowDialog() -eq 'OK'){ $f.SelectedPath } else { 'CANCEL' }"`) do set "INSTALL_DIR=%%I"
+for /f "usebackq tokens=*" %%I in (`powershell -STA -NoProfile -Command "Add-Type -AssemblyName System.windows.forms | Out-Null; $f = New-Object System.Windows.Forms.FolderBrowserDialog; $f.Description = 'AgentSmith를 설치할 최상위 폴더를 선택하세요 (이 폴더 안에 agentsmith 폴더가 생성됩니다)'; $f.ShowNewFolderButton = $true; $f.RootFolder = 'MyComputer'; $form = New-Object System.Windows.Forms.Form; $form.TopMost = $true; if($f.ShowDialog($form) -eq 'OK'){ $f.SelectedPath } else { 'CANCEL' }"`) do set "INSTALL_DIR=%%I"
 
 if "%INSTALL_DIR%"=="CANCEL" (
     echo [취소] 폴더 선택이 취소되었습니다. 설치를 종료합니다.
