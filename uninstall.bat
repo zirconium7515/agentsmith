@@ -2,22 +2,23 @@
 chcp 65001 >nul
 setlocal EnableDelayedExpansion
 
+if "%~1"=="RUN_FROM_TEMP" goto DeleteFolder
+
 echo ==========================================
 echo AgentSmith 완전 삭제 프로그램
 echo ==========================================
 echo.
-if "%~1"=="RUN_FROM_TEMP" goto :DeleteFolder
-
 echo 정말로 AgentSmith를 완전히 삭제하시겠습니까?
 echo 이 작업은 취소할 수 없으며, 모든 소스코드와 설정 파일이 영구 삭제됩니다.
 echo.
 set /p "confirm=삭제하려면 Y를 누르고 엔터를 치세요 (Y/N): "
-if /i not "%confirm%"=="Y" (
-    echo 삭제가 취소되었습니다.
-    pause
-    exit /b
-)
+if /i "%confirm%"=="Y" goto StartUninstall
 
+echo 삭제가 취소되었습니다.
+pause
+exit /b
+
+:StartUninstall
 :: 자신을 포함한 부모 폴더(agentsmith)의 전체 경로 확보
 set "TARGET_DIR=%CD%"
 
