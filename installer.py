@@ -100,15 +100,16 @@ class InstallerApp:
                 
         self.log("최신 소스코드 다운로드 중 (Git Clone)...")
         os.chdir(install_dir)
-        if not os.path.exists("agentsmith"):
-            success, err = self.run_command(["git", "clone", "https://github.com/zirconium7515/agentsmith.git"])
+        if not os.path.exists(".git"):
+            # Clone into the current directory ('.') to prevent double nesting (AgentSmith/agentsmith)
+            success, err = self.run_command(["git", "clone", "https://github.com/zirconium7515/agentsmith.git", "."])
             if not success:
                 self.root.after(0, lambda e=err: messagebox.showerror("설치 오류", f"소스코드 다운로드에 실패했습니다:\n{e}"))
                 self.root.after(0, self.finish_install, False)
                 return
                 
         self.log("빌드 스크립트 실행 준비 중...")
-        os.chdir("agentsmith")
+        # (이미 최상위 폴더이므로 더 이상 cd agentsmith 를 하지 않음)
         
         if os.path.exists("update_and_build.bat"):
             # Execute batch file detached (open in a new visible console)
