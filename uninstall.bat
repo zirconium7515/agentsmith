@@ -19,8 +19,9 @@ pause
 exit /b
 
 :StartUninstall
-:: 자신을 포함한 부모 폴더(agentsmith)의 전체 경로 확보
-set "TARGET_DIR=%CD%"
+:: 자신을 포함한 부모 폴더(agentsmith)의 전체 경로 확보 (%CD% 대신 %~dp0 사용)
+set "TARGET_DIR=%~dp0"
+if "%TARGET_DIR:~-1%"=="\" set "TARGET_DIR=%TARGET_DIR:~0,-1%"
 
 :: 자신을 임시 폴더(TEMP)로 복사 (실행 중인 폴더는 삭제 불가하기 때문)
 copy "%~f0" "%TEMP%\AgentSmith_Uninstall.bat" >nul
